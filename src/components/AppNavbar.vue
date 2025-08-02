@@ -1,22 +1,57 @@
 <template>
   <div class="app-navbar">
-    <!-- Left side - Logo and navigation -->
+    <!-- Left side - Logo -->
     <div class="navbar-left">
       <div class="logo-container" @click="$router.push('/')">
         <div class="logo-icon">CA</div>
         <h1 class="site-title">CodeArena</h1>
       </div>
-      
-      <el-button 
-        v-if="showBackButton"
-        type="primary" 
-        @click="goBack"
-        class="back-button"
-        :icon="ArrowLeft"
-        text
-      >
-        返回
-      </el-button>
+    </div>
+
+    <!-- Center - Navigation Tabs -->
+    <div class="navbar-center">
+      <div class="nav-tabs">
+        <div 
+          class="nav-tab" 
+          :class="{ active: activeTab === 'study' }"
+          @click="navigateToTab('study')"
+        >
+          <el-icon><Reading /></el-icon>
+          <span>学习</span>
+        </div>
+        <div 
+          class="nav-tab" 
+          :class="{ active: activeTab === 'questions' }"
+          @click="navigateToTab('questions')"
+        >
+          <el-icon><Document /></el-icon>
+          <span>题库</span>
+        </div>
+        <div 
+          class="nav-tab" 
+          :class="{ active: activeTab === 'contest' }"
+          @click="navigateToTab('contest')"
+        >
+          <el-icon><Trophy /></el-icon>
+          <span>竞赛</span>
+        </div>
+        <div 
+          class="nav-tab" 
+          :class="{ active: activeTab === 'discuss' }"
+          @click="navigateToTab('discuss')"
+        >
+          <el-icon><ChatDotRound /></el-icon>
+          <span>讨论</span>
+        </div>
+        <div 
+          class="nav-tab" 
+          :class="{ active: activeTab === 'jobs' }"
+          @click="navigateToTab('jobs')"
+        >
+          <el-icon><Suitcase /></el-icon>
+          <span>求职</span>
+        </div>
+      </div>
     </div>
 
     <!-- Right side - User information -->
@@ -80,26 +115,34 @@
 </template>
 
 <script>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
-  ArrowLeft,
   ArrowDown,
   User, 
   Setting,
-  SwitchButton 
+  SwitchButton,
+  Reading,
+  Document,
+  Trophy,
+  ChatDotRound,
+  Suitcase
 } from '@element-plus/icons-vue'
 import apiClient from '../api/apiClient'
 
 export default {
   name: 'AppNavbar',
   components: {
-    ArrowLeft,
     ArrowDown,
     User,
     Setting,
-    SwitchButton
+    SwitchButton,
+    Reading,
+    Document,
+    Trophy,
+    ChatDotRound,
+    Suitcase
   },
   props: {
     currentUser: {
@@ -111,20 +154,43 @@ export default {
   setup(props, { emit }) {
     const router = useRouter()
     const route = useRoute()
+    const activeTab = ref('study')
 
-    // Calculate whether to show back button
-    const showBackButton = computed(() => {
-      // Don't show back button on home, login, register pages
-      const noBackRoutes = ['/', '/login', '/register', '/dashboard']
-      return !noBackRoutes.includes(route.path)
-    })
+    // Watch route changes to update active tab
+    watch(() => route.path, (newPath) => {
+      if (newPath === '/' || newPath === '/dashboard') {
+        activeTab.value = 'study'
+      } else if (newPath.startsWith('/questions')) {
+        activeTab.value = 'questions'
+      } else if (newPath.startsWith('/contest')) {
+        activeTab.value = 'contest'
+      } else if (newPath.startsWith('/discuss')) {
+        activeTab.value = 'discuss'
+      } else if (newPath.startsWith('/jobs')) {
+        activeTab.value = 'jobs'
+      }
+    }, { immediate: true })
 
-    // Go back to previous page
-    const goBack = () => {
-      if (window.history.length > 1) {
-        router.go(-1)
-      } else {
-        router.push('/')
+    // Navigate to different tabs
+    const navigateToTab = async (tab) => {
+      try {
+        const routeMap = {
+          'study': '/',
+          'questions': '/questions',
+          'contest': '/contest',
+          'discuss': '/discuss',
+          'jobs': '/jobs'
+        }
+        
+        const targetPath = routeMap[tab]
+        if (targetPath && route.path !== targetPath) {
+          await router.push(targetPath)
+        }
+      } catch (error) {
+        // 忽略导航相关错误
+        if (error.name !== 'NavigationDuplicated' && error.name !== 'NavigationAborted') {
+          console.error('Navigation error:', error)
+        }
       }
     }
 
@@ -179,14 +245,18 @@ export default {
     }
 
     return {
-      showBackButton,
-      goBack,
+      activeTab,
+      navigateToTab,
       handleCommand,
-      ArrowLeft,
       ArrowDown,
       User,
       Setting,
-      SwitchButton
+      SwitchButton,
+      Reading,
+      Document,
+      Trophy,
+      ChatDotRound,
+      Suitcase
     }
   }
 }
@@ -206,13 +276,58 @@ export default {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   height: 70px;
   width: 95%;
-  margin: 0 auto; /* Center the navbar */
+  margin: 0 auto;
 }
 
 .navbar-left {
   display: flex;
   align-items: center;
-  gap: 24px;
+  flex-shrink: 0;
+}
+
+.navbar-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  margin: 0 40px;
+}
+
+.nav-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.nav-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.nav-tab:hover {
+  background: rgba(64, 158, 255, 0.1);
+  color: #409eff;
+}
+
+.nav-tab.active {
+  background: #409eff;
+  color: white;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+}
+
+.nav-tab .el-icon {
+  font-size: 16px;
 }
 
 .logo-container {

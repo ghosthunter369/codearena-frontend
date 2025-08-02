@@ -11,7 +11,12 @@
           <p class="page-subtitle">管理和练习编程题目</p>
         </div>
         <div class="header-actions">
-          <el-button type="primary" size="large" @click="showCreateDialog = true">
+          <el-button 
+            v-if="isAdmin"
+            type="primary" 
+            size="large" 
+            @click="showCreateDialog = true"
+          >
             <el-icon><Plus /></el-icon>
             创建题目
           </el-button>
@@ -133,11 +138,17 @@
                 <el-icon><View /></el-icon>
                 查看
               </el-button>
-              <el-button size="small" type="primary" @click="editQuestion(row)">
+              <el-button 
+                v-if="isAdmin"
+                size="small" 
+                type="primary" 
+                @click="editQuestion(row)"
+              >
                 <el-icon><Edit /></el-icon>
                 编辑
               </el-button>
               <el-button
+                v-if="isAdmin"
                 size="small"
                 type="danger"
                 @click="deleteQuestion(row)"
@@ -315,7 +326,8 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Document,
@@ -340,6 +352,8 @@ export default {
     Delete
   },
   setup() {
+    const router = useRouter()
+    
     // Reactive data
     const loading = ref(false)
     const submitting = ref(false)
@@ -348,6 +362,7 @@ export default {
     const searchQuery = ref('')
     const selectedDifficulty = ref('')
     const selectedTag = ref('')
+    const currentUser = ref(null)
     
     // Pagination
     const currentPage = ref(1)
@@ -408,17 +423,91 @@ export default {
       return filtered
     })
 
+    // Check if current user is admin
+    const isAdmin = computed(() => {
+      return currentUser.value && currentUser.value.userRole === 'admin'
+    })
+
     // Methods
+    const getCurrentUser = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}')
+        if (user && user.id) {
+          currentUser.value = user
+        }
+      } catch (error) {
+        console.error('获取用户信息失败:', error)
+      }
+    }
+
     const loadQuestions = async () => {
       try {
         loading.value = true
         const response = await apiClient.getQuestions()
-        questions.value = response || []
-        totalQuestions.value = questions.value.length
+        
+        // Parse the API response structure
+        let questionsData = []
+        if (response && response.data && response.data.records) {
+          // API returns: { code: 0, data: { records: [...], total: "5" } }
+          questionsData = Array.isArray(response.data.records) ? response.data.records : []
+          totalQuestions.value = parseInt(response.data.total) || questionsData.length
+        } else if (Array.isArray(response)) {
+          // Direct array response
+          questionsData = response
+          totalQuestions.value = questionsData.length
+        } else if (response?.data && Array.isArray(response.data)) {
+          // Response with data array
+          questionsData = response.data
+          totalQuestions.value = questionsData.length
+        }
+        
+        // Transform the data to match component expectations
+        questions.value = questionsData.map(item => {
+          // Parse tags - they come as JSON strings like "[\"栈\", \"二叉树\"]"
+          let parsedTags = []
+          if (Array.isArray(item.tags)) {
+            parsedTags = item.tags.flatMap(tag => {
+              if (typeof tag === 'string') {
+                try {
+                  // Try to parse JSON string
+                  const parsed = JSON.parse(tag)
+                  return Array.isArray(parsed) ? parsed : [tag]
+                } catch {
+                  return [tag]
+                }
+              }
+              return [tag]
+            })
+          } else if (typeof item.tags === 'string') {
+            try {
+              const parsed = JSON.parse(item.tags)
+              parsedTags = Array.isArray(parsed) ? parsed : [item.tags]
+            } catch {
+              parsedTags = [item.tags]
+            }
+          }
+          
+          return {
+            id: item.id,
+            title: item.title,
+            content: item.content,
+            difficulty: item.difficulty || 'medium',
+            tags: parsedTags,
+            status: item.status || 'pending',
+            sampleInput: item.sampleInput || '',
+            sampleOutput: item.sampleOutput || '',
+            createTime: item.createTime || item.updateTime || new Date().toISOString(),
+            submitNum: item.submitNum || 0,
+            acceptedNum: item.acceptedNum || 0,
+            judgeConfig: item.judgeConfig || {},
+            userVO: item.userVO || {}
+          }
+        })
+        
       } catch (error) {
         console.error('加载题目失败:', error)
         ElMessage.error('加载题目失败')
-        // Mock data for demo
+        // Mock data for demo - ensure it's always an array
         questions.value = [
           {
             id: 1,
@@ -479,8 +568,8 @@ export default {
     }
 
     const viewQuestion = (question) => {
-      selectedQuestion.value = question
-      showDetailDialog.value = true
+      // Navigate to question detail page
+      router.push(`/questions/${question.id}`)
     }
 
     const editQuestion = (question) => {
@@ -576,7 +665,24 @@ export default {
 
     // Lifecycle
     onMounted(() => {
+      getCurrentUser()
       loadQuestions()
+    })
+
+    // Cleanup on unmount
+    onUnmounted(() => {
+      // Reset all reactive data to prevent memory leaks
+      questions.value = []
+      selectedQuestions.value = []
+      searchQuery.value = ''
+      selectedDifficulty.value = ''
+      selectedTag.value = ''
+      showCreateDialog.value = false
+      showDetailDialog.value = false
+      editingQuestion.value = null
+      selectedQuestion.value = null
+      loading.value = false
+      submitting.value = false
     })
 
     return {
@@ -598,6 +704,8 @@ export default {
       questionForm,
       questionRules,
       filteredQuestions,
+      currentUser,
+      isAdmin,
       loadQuestions,
       handleSearch,
       handleFilter,

@@ -8,7 +8,7 @@
 
     <!-- 主内容：贴左边、全宽 -->
     <div class="app-content">
-      <router-view />
+      <router-view :key="`${$route.name}-${$route.params.id || ''}`" />
     </div>
   </div>
 </template>

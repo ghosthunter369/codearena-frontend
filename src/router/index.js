@@ -65,12 +65,48 @@ const routes = [
     }
   },
   {
+    path: '/questions/:id',
+    name: '题目详情',
+    component: () => import('../views/QuestionDetail.vue'),
+    meta: { 
+      requiresAuth: true,
+      title: 'CodeArena - 题目详情'
+    }
+  },
+  {
     path: '/api-example',
     name: 'API示例',
     component: ApiExample,
     meta: { 
       requiresAuth: true,
       title: 'CodeArena - API示例'
+    }
+  },
+  {
+    path: '/contest',
+    name: '竞赛',
+    component: () => import('../views/Contest.vue'),
+    meta: { 
+      requiresAuth: true,
+      title: 'CodeArena - 竞赛'
+    }
+  },
+  {
+    path: '/discuss',
+    name: '讨论',
+    component: () => import('../views/Discuss.vue'),
+    meta: { 
+      requiresAuth: true,
+      title: 'CodeArena - 讨论'
+    }
+  },
+  {
+    path: '/jobs',
+    name: '求职',
+    component: () => import('../views/Jobs.vue'),
+    meta: { 
+      requiresAuth: true,
+      title: 'CodeArena - 求职'
     }
   },
   {

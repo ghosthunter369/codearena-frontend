@@ -219,6 +219,11 @@ class ApiClient {
     }
   }
 
+  // Alias for getQuestionById for consistency
+  async getQuestion(id) {
+    return this.getQuestionById(id)
+  }
+
   async createQuestion(questionData) {
     try {
       const response = await axiosInstance.post('/question/add', questionData)
